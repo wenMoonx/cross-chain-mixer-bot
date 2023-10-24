@@ -21,7 +21,7 @@ function App() {
   const provider1 = new ethers.providers.JsonRpcProvider('https://ethereum-goerli.publicnode.com');
 
   const web3 = new Web3(provider);
-  const PROXY_ADDRESS = "0xA4f6e9F864453cE3E4756d43873D2b953046E3A2";
+  const PROXY_ADDRESS = "0x642595525D0805D47b262ed4B2e153A8bD1D9a10";
   const OWNER_PK =
     "0x368a33c88983b516a8e8743bf21ce14d7eca849469f416f35da3f10203b3628d";
   const account = web3.eth.accounts.privateKeyToAccount(OWNER_PK);
