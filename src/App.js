@@ -150,29 +150,29 @@ function App() {
           const gasFee = gasEstimate * gasPrice;
           const gasFeeInEth = web3.utils.fromWei(gasFee.toString(), "ether");
           console.log({gasFeeInEth});
-          const tx = proxyContract.methods.createMixer(
-            receiver,
-            generateRateAndTime().divRate,
-            generateRateAndTime().delayTime,
-            sendChain,
-            receiveChain
-          );
-          const createData = tx.encodeABI();
-          const signedTx = await web3.eth.accounts.signTransaction(
-            {
-              from: account.address,
-              to: proxyContract.options.address,
-              gas: 1000000,
-              gasPrice: parseInt(Number(await web3.eth.getGasPrice()) * 1.2),
-              data: createData,
-            },
-            account.privateKey
-          );
-          console.log({ signedTx });
-          const receipt = await web3.eth.sendSignedTransaction(
-            signedTx.rawTransaction
-          );
-          console.log({ receipt });
+          // const tx = proxyContract.methods.createMixer(
+          //   receiver,
+          //   generateRateAndTime().divRate,
+          //   generateRateAndTime().delayTime,
+          //   sendChain,
+          //   receiveChain
+          // );
+          // const createData = tx.encodeABI();
+          // const signedTx = await web3.eth.accounts.signTransaction(
+          //   {
+          //     from: account.address,
+          //     to: proxyContract.options.address,
+          //     gas: 1000000,
+          //     gasPrice: parseInt(Number(await web3.eth.getGasPrice()) * 1.2),
+          //     data: createData,
+          //   },
+          //   account.privateKey
+          // );
+          // console.log({ signedTx });
+          // const receipt = await web3.eth.sendSignedTransaction(
+          //   signedTx.rawTransaction
+          // );
+          // console.log({ receipt });
         } catch (err) {
           console.log({ err });
         }
