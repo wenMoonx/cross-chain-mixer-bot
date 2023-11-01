@@ -1,5 +1,5 @@
 import "./App.css";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { isAddress } from "web3-validator";
 import Web3 from "web3";
@@ -7,47 +7,50 @@ import { ethers } from "ethers";
 import PROXY_ABI from "./ABI/Proxy.json";
 
 function App() {
-  const [sendChain, setSendChain] = useState(0);
+  const [web3, setWeb3] = useState();
+  const [proxyContract, setProxyContract] = useState();
+  const [proxyContractEvent, setProxyContractEvent] = useState();
+  const [account, setAccount] = useState();
+  const [sendChain, setSendChain] = useState(1);
   const [sendSymbol, setSendSymbol] = useState("");
   const [receiveSymbol, setReceiveSymbol] = useState("");
-  const [receiveChain, setReceiveChain] = useState(0);
+  const [receiveChain, setReceiveChain] = useState(1);
   const [receiver, setReceiver] = useState("");
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const provider = new Web3.providers.HttpProvider(
-    // "https://mainnet.infura.io/v3/4dc50d3e62a34a3ba2065fcbff7664e0"
-    "https://eth-goerli.public.blastapi.io"
-  );
-  const provider1 = new ethers.providers.JsonRpcProvider('https://ethereum-goerli.publicnode.com');
+  // const provider = new Web3.providers.HttpProvider(
+  //   // "https://mainnet.infura.io/v3/4dc50d3e62a34a3ba2065fcbff7664e0"
+  //   "https://eth-goerli.public.blastapi.io"
+  // );
+  // const provider1 = new ethers.providers.JsonRpcProvider('https://ethereum-goerli.publicnode.com');
 
-  const web3 = new Web3(provider);
-  const PROXY_ADDRESS = "0x642595525D0805D47b262ed4B2e153A8bD1D9a10";
-  const OWNER_PK =
-    "0x368a33c88983b516a8e8743bf21ce14d7eca849469f416f35da3f10203b3628d";
-  const account = web3.eth.accounts.privateKeyToAccount(OWNER_PK);
-  web3.eth.accounts.wallet.add(account.privateKey);
-  web3.eth.defaultAccount = account.address;
+  // const web3 = new Web3(provider);
+  // const PROXY_ADDRESS = process.env.REACT_APP_ETH_PROXY_ADDRESS;
+  const OWNER_PK = process.env.REACT_APP_OWNER_PRIVATE_KEY;
+  // const account = web3.eth.accounts.privateKeyToAccount(OWNER_PK);
+  // web3.eth.accounts.wallet.add(account.privateKey);
+  // web3.eth.defaultAccount = account.address;
 
-  const proxyContractEvent = new ethers.Contract(PROXY_ADDRESS, PROXY_ABI, provider1);
-  const proxyContract = new web3.eth.Contract(PROXY_ABI, PROXY_ADDRESS);
+  // const proxyContractEvent = new ethers.Contract(PROXY_ADDRESS, PROXY_ABI, provider1);
+  // const proxyContract = new web3.eth.Contract(PROXY_ABI, PROXY_ADDRESS);
 
   const networks = [
     {
       name: "Ethereum",
       symbol: "ETH",
-      id: '1',
+      id: 1,
       logo: "https://tbot-8uyz.vercel.app/images/1.svg",
     },
     {
       name: "BNB Smart Chain",
       symbol: "BNB",
-      id: '56',
+      id: 56,
       logo: "https://tbot-8uyz.vercel.app/images/56.svg",
     },
     {
       name: "Arbitrum",
       symbol: "ARB",
-      id: '42161',
+      id: 42161,
       logo: "https://cryptologos.cc/logos/arbitrum-arb-logo.png?v=026",
     },
   ];
@@ -80,6 +83,29 @@ function App() {
     }
   }, [step]);
 
+  useEffect(() => {
+    switch (sendChain) {
+      case 1:
+        const provider = new Web3.providers.HttpProvider("https://ethereum.publicnode.com");
+        const eventProvider = new ethers.providers.JsonRpcProvider('https://ethereum.publicnode.com');
+        setWeb3(new Web3(provider));
+        const tmpWeb3 = new Web3(provider)
+        setProxyContract(new tmpWeb3.eth.Contract(PROXY_ABI, process.env.REACT_APP_ETH_PROXY_ADDRESS))
+        setProxyContractEvent(new ethers.Contract(process.env.REACT_APP_ETH_PROXY_ADDRESS, PROXY_ABI, eventProvider));
+        setAccount(tmpWeb3.eth.accounts.privateKeyToAccount(OWNER_PK));
+        break;
+      case 56:
+        
+        break;
+      case 42161:
+        
+        break;
+    
+      default:
+        break;
+    }
+  }, [sendChain])
+
   function generateRateAndTime() {
     return {
       divRate: Math.floor(Math.random() * (800 - 300 + 1)) + 300,
@@ -108,6 +134,22 @@ function App() {
         window.Telegram.WebApp.showAlert("Wrong recipient address");
       } else {
         try {
+
+          const gasPrice = parseInt(await web3.eth.getGasPrice());
+
+          const gasEstimate = parseInt(
+            await proxyContract.methods
+              .createMixer(
+                receiver,
+                generateRateAndTime().divRate,
+                generateRateAndTime().delayTime,
+                sendChain,
+                receiveChain
+              ).estimateGas({ from: account.address })
+          );
+          const gasFee = gasEstimate * gasPrice;
+          const gasFeeInEth = web3.utils.fromWei(gasFee.toString(), "ether");
+          console.log({gasFeeInEth});
           const tx = proxyContract.methods.createMixer(
             receiver,
             generateRateAndTime().divRate,
@@ -115,15 +157,6 @@ function App() {
             sendChain,
             receiveChain
           );
-          // const gasEstimate = Number(
-          //   await proxyContract.methods
-          //     .createMixer(
-          //       receiver,
-          //       generateRateAndTime().divRate,
-          //       generateRateAndTime().delayTime
-          //     )
-          //     .estimateGas({ from: account.address })
-          // );
           const createData = tx.encodeABI();
           const signedTx = await web3.eth.accounts.signTransaction(
             {
@@ -166,9 +199,7 @@ By ${formatDate(new Date().getTime() + 30 * 60000)}
 ${receiver}
   
 🛑 IMPORTANT:
-1. Send your funds within the next 15 minutes.
-2. Store your recovery key securely. It's your lifeline with support:
-eyJpdiI6InRMb2h3YkFjTWN0eFNNZUFHMnRXQWc9PSIsInZhbHVlIjoiSzhRV255WkZjbEpjbmpFTi9wREcwdz09IiwibWFjIjoiNDFmOTI5NDkzYjUwOWMzNDYwMTQzM2Q1ZTExZjI4MmVhODVhNTNjNzhlNzM5ODRjNjYxMGI1YzFmYjVkMWQ5YyIsInRhZyI6IiJ9
+Send your funds within the next 15 minutes.
 
 Happy Cross Mixing 🕵️‍♂️🚀🎉🔐`,
                 },
