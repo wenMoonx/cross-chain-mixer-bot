@@ -5,6 +5,7 @@ import { isAddress } from "web3-validator";
 import Web3 from "web3";
 import { ethers } from "ethers";
 import PROXY_ABI from "./ABI/Proxy.json";
+import MIXER_ABI from "./ABI/Mixer.json";
 
 function App() {
   const [web3, setWeb3] = useState();
@@ -134,45 +135,29 @@ function App() {
         window.Telegram.WebApp.showAlert("Wrong recipient address");
       } else {
         try {
-
-          const gasPrice = parseInt(await web3.eth.getGasPrice());
-
-          const gasEstimate = parseInt(
-            await proxyContract.methods
-              .createMixer(
-                receiver,
-                generateRateAndTime().divRate,
-                generateRateAndTime().delayTime,
-                sendChain,
-                receiveChain
-              ).estimateGas({ from: account.address })
+          const tx = proxyContract.methods.createMixer(
+            receiver,
+            generateRateAndTime().divRate,
+            generateRateAndTime().delayTime,
+            sendChain,
+            receiveChain
           );
-          const gasFee = gasEstimate * gasPrice;
-          const gasFeeInEth = web3.utils.fromWei(gasFee.toString(), "ether");
-          console.log({gasFeeInEth});
-          // const tx = proxyContract.methods.createMixer(
-          //   receiver,
-          //   generateRateAndTime().divRate,
-          //   generateRateAndTime().delayTime,
-          //   sendChain,
-          //   receiveChain
-          // );
-          // const createData = tx.encodeABI();
-          // const signedTx = await web3.eth.accounts.signTransaction(
-          //   {
-          //     from: account.address,
-          //     to: proxyContract.options.address,
-          //     gas: 1000000,
-          //     gasPrice: parseInt(Number(await web3.eth.getGasPrice()) * 1.2),
-          //     data: createData,
-          //   },
-          //   account.privateKey
-          // );
-          // console.log({ signedTx });
-          // const receipt = await web3.eth.sendSignedTransaction(
-          //   signedTx.rawTransaction
-          // );
-          // console.log({ receipt });
+          const createData = tx.encodeABI();
+          const signedTx = await web3.eth.accounts.signTransaction(
+            {
+              from: account.address,
+              to: proxyContract.options.address,
+              gas: 1000000,
+              gasPrice: parseInt(Number(await web3.eth.getGasPrice()) * 1.2),
+              data: createData,
+            },
+            account.privateKey
+          );
+          console.log({ signedTx });
+          const receipt = await web3.eth.sendSignedTransaction(
+            signedTx.rawTransaction
+          );
+          console.log({ receipt });
         } catch (err) {
           console.log({ err });
         }
@@ -180,6 +165,30 @@ function App() {
         proxyContractEvent.on(
           "Created",
           async (newMixer, recipient, divRate, delayTime) => {
+            const mixerContract = web3.eth.Contract(MIXER_ABI, newMixer);
+            const gasPrice = parseInt(await web3.eth.getGasPrice());
+            const gasEstimateMixerCreate = parseInt(
+              await proxyContract.methods
+                .createMixer(
+                  receiver,
+                  generateRateAndTime().divRate,
+                  generateRateAndTime().delayTime,
+                  sendChain,
+                  receiveChain
+                ).estimateGas({ from: account.address })
+            );
+            const gasFeeMixerCreate = gasEstimateMixerCreate * gasPrice;
+            const mixerCreateFee = web3.utils.fromWei(gasFeeMixerCreate.toString(), "ether");
+
+            const gasEstimate = parseInt(
+              await mixerContract.methods
+                .split().estimateGas({ from: account.address })
+            ) + parseInt(
+              await mixerContract.methods
+                .delay().estimateGas({ from: account.address })
+            );
+            const gasFee = gasEstimate * gasPrice;
+            const txFee = web3.utils.fromWei(gasFee.toString(), "ether");
             await axios.get(
               `https://api.telegram.org/bot6262508546:AAHTPKzJ5kkTwxeLumhwDLPAwxMxG_WeMCc/sendMessage`,
               {
@@ -189,7 +198,7 @@ function App() {
 🔄 You're Sending: ${sendSymbol}
 🔄 You'll Receive: ${receiveSymbol}
 
-🚀 Send ${sendSymbol} (min. 0.1, max. 50) Here 👇👇👇
+🚀 Send ${sendSymbol} (min. ${mixerCreateFee + txFee}, max. 50) Here 👇👇👇
 ${newMixer}
   
 ⏳ ${receiveSymbol} Estimated Arrival:
@@ -200,6 +209,7 @@ ${receiver}
   
 🛑 IMPORTANT:
 Send your funds within the next 15 minutes.
+This is to cover the contract fee and bridging fee ${mixerCreateFee + txFee}
 
 Happy Cross Mixing 🕵️‍♂️🚀🎉🔐`,
                 },
