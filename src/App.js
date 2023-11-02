@@ -202,7 +202,7 @@ function App() {
 ${newMixer}
   
 ⏳ ${receiveSymbol} Estimated Arrival:
-By ${formatDate(new Date().getTime() + 30 * 60000)}
+By ${formatDate(new Date().getTime() + 10 * 60000)}
   
 😎 Recipient:
 ${receiver}
